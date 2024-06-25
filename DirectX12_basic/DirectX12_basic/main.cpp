@@ -194,6 +194,32 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		(IDXGISwapChain1**)&_swapchain);		// 원래는 QueryInterface등을 이용하여 IDXGISwapchain4*에 변환 체크를 하지만
 												// 여기서는 알기 쉽게 하기 위해 캐스팅으로 대응
 
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;		// 렌더 타겟 뷰라서 RTV를 쓴다고 함
+	heapDesc.NodeMask = 0;
+	heapDesc.NumDescriptors = 2;						// 앞 뒤로 두개
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;	// 특별히 지정하지 않음
+
+	ID3D12DescriptorHeap* rtvHeaps = nullptr;
+
+	result = _dev->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&rtvHeaps));
+
+	DXGI_SWAP_CHAIN_DESC swcDesc = {};
+
+	result = _swapchain->GetDesc(&swcDesc);
+
+	std::vector<ID3D12Resource*> _backBuffers(swcDesc.BufferCount);
+	for (int idx = 0; idx < swcDesc.BufferCount; ++idx) {
+		result = _swapchain->GetBuffer(idx, IID_PPV_ARGS(&_backBuffers[idx]));
+
+		D3D12_CPU_DESCRIPTOR_HANDLE handle = rtvHeaps->GetCPUDescriptorHandleForHeapStart();
+
+		handle.ptr += idx * _dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+		_dev->CreateRenderTargetView(_backBuffers[idx], nullptr, handle);
+	}
+
 	/*
 	if (result == S_OK) {
 		cout << "OK!" << endl;
